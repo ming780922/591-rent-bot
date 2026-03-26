@@ -1,1 +1,15 @@
-# wrangler.toml - Cloudflare Workers 設定
+name = "591-rent-bot"
+main = "src/index.ts"
+compatibility_date = "2024-05-29"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rent-bot-db"
+database_id = "REPLACE_AFTER_D1_CREATE"
+
+[triggers]
+crons = ["0 * * * *"]
