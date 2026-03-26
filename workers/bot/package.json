@@ -1,1 +1,18 @@
-{}
+{
+  "name": "591-rent-bot-worker",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute rent-bot-db --file=src/db/schema.sql"
+  },
+  "dependencies": {
+    "grammy": "^1.21.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.57.0"
+  }
+}
