@@ -4,6 +4,7 @@ export interface Env {
   INTERNAL_SECRET: string
   GH_TOKEN: string
   GH_REPO: string
+  MINIAPP_URL: string
 }
 
 // ── Users ──────────────────────────────────────────

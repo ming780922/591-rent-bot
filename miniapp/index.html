@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>591 租屋訂閱管理</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Tab bar -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="settings">設定訂閱</button>
+    <button class="tab-btn" data-tab="view">查看訂閱</button>
+    <button class="tab-btn" data-tab="manage">管理</button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- ── Tab: Settings ── -->
+  <div id="tab-settings" class="tab-content active">
+    <form id="subscribe-form" novalidate>
+
+      <!-- 位置 -->
+      <section class="section">
+        <h2 class="section-title">位置</h2>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" name="location_type" value="town" checked />
+            按鄉鎮區域
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="location_type" value="mrt" />
+            按捷運站
+          </label>
+        </div>
+
+        <!-- Town mode -->
+        <div id="town-selector">
+          <div class="field">
+            <label class="field-label">縣市</label>
+            <select id="city-select" class="select">
+              <option value="">選擇縣市</option>
+            </select>
+          </div>
+          <div class="field" id="district-field" style="display:none">
+            <label class="field-label">區域（可多選）</label>
+            <div id="district-checkboxes" class="chip-group"></div>
+          </div>
+          <div id="selected-areas" class="tag-list"></div>
+          <button type="button" id="add-area-btn" class="btn-secondary" style="display:none">+ 新增其他縣市</button>
+        </div>
+
+        <!-- MRT mode -->
+        <div id="mrt-selector" style="display:none">
+          <div class="field">
+            <label class="field-label">捷運路線</label>
+            <select id="mrt-line-select" class="select">
+              <option value="">選擇路線</option>
+              <option value="板南線">板南線</option>
+              <option value="淡水信義線">淡水信義線</option>
+              <option value="中和新蘆線">中和新蘆線</option>
+              <option value="文湖線">文湖線</option>
+            </select>
+          </div>
+          <div class="field" id="mrt-station-field" style="display:none">
+            <label class="field-label">站點（可多選）</label>
+            <div id="mrt-station-checkboxes" class="chip-group"></div>
+          </div>
+          <div id="selected-mrt-lines" class="tag-list"></div>
+          <button type="button" id="add-line-btn" class="btn-secondary" style="display:none">+ 新增其他路線</button>
+        </div>
+      </section>
+
+      <!-- 房屋類型 -->
+      <section class="section">
+        <h2 class="section-title">房屋類型</h2>
+        <div class="chip-group">
+          <label class="chip"><input type="checkbox" name="room_type" value="整層住家" />整層住家</label>
+          <label class="chip"><input type="checkbox" name="room_type" value="獨立套房" />獨立套房</label>
+          <label class="chip"><input type="checkbox" name="room_type" value="分租套房" />分租套房</label>
+          <label class="chip"><input type="checkbox" name="room_type" value="雅房" />雅房</label>
+          <label class="chip"><input type="checkbox" name="room_type" value="車位" />車位</label>
+          <label class="chip"><input type="checkbox" name="room_type" value="其他" />其他</label>
+        </div>
+      </section>
+
+      <!-- 租金範圍 -->
+      <section class="section">
+        <h2 class="section-title">租金範圍（元）</h2>
+        <div class="range-row">
+          <input type="number" id="rent_min" name="rent_min" class="input" placeholder="最低" min="0" />
+          <span class="range-sep">~</span>
+          <input type="number" id="rent_max" name="rent_max" class="input" placeholder="最高" min="0" />
+        </div>
+      </section>
+
+      <!-- 格局 -->
+      <section class="section">
+        <h2 class="section-title">格局</h2>
+        <div class="chip-group">
+          <label class="chip"><input type="checkbox" name="layout" value="1房" />1房</label>
+          <label class="chip"><input type="checkbox" name="layout" value="2房" />2房</label>
+          <label class="chip"><input type="checkbox" name="layout" value="3房" />3房</label>
+          <label class="chip"><input type="checkbox" name="layout" value="4房以上" />4房以上</label>
+        </div>
+      </section>
+
+      <!-- 坪數範圍 -->
+      <section class="section">
+        <h2 class="section-title">坪數範圍（坪）</h2>
+        <div class="range-row">
+          <input type="number" id="size_min" name="size_min" class="input" placeholder="最小" min="0" />
+          <span class="range-sep">~</span>
+          <input type="number" id="size_max" name="size_max" class="input" placeholder="最大" min="0" />
+        </div>
+      </section>
+
+      <!-- 建築型態 -->
+      <section class="section">
+        <h2 class="section-title">建築型態</h2>
+        <div class="chip-group">
+          <label class="chip"><input type="checkbox" name="shape" value="公寓" />公寓</label>
+          <label class="chip"><input type="checkbox" name="shape" value="電梯大樓" />電梯大樓</label>
+          <label class="chip"><input type="checkbox" name="shape" value="透天厝" />透天厝</label>
+          <label class="chip"><input type="checkbox" name="shape" value="別墅" />別墅</label>
+        </div>
+      </section>
+
+      <!-- 特色 -->
+      <section class="section">
+        <h2 class="section-title">特色</h2>
+        <div class="chip-group">
+          <label class="chip"><input type="checkbox" name="feat_new" value="1" />新上架</label>
+          <label class="chip"><input type="checkbox" name="feat_near_mrt" value="1" />近捷運</label>
+          <label class="chip"><input type="checkbox" name="feat_pet" value="1" />可養寵物</label>
+          <label class="chip"><input type="checkbox" name="feat_cook" value="1" />可開伙</label>
+          <label class="chip"><input type="checkbox" name="feat_parking" value="1" />有車位</label>
+          <label class="chip"><input type="checkbox" name="feat_elevator" value="1" />有電梯</label>
+          <label class="chip"><input type="checkbox" name="feat_balcony" value="1" />有陽台</label>
+          <label class="chip"><input type="checkbox" name="feat_short_term" value="1" />可短期租賃</label>
+          <label class="chip"><input type="checkbox" name="feat_social_housing" value="1" />社會住宅</label>
+          <label class="chip"><input type="checkbox" name="feat_subsidy" value="1" />租金補貼</label>
+          <label class="chip"><input type="checkbox" name="feat_elderly" value="1" />高齡友善</label>
+          <label class="chip"><input type="checkbox" name="feat_invoice" value="1" />可報稅</label>
+          <label class="chip"><input type="checkbox" name="feat_register" value="1" />可入籍</label>
+          <label class="chip chip--danger"><input type="checkbox" name="exclude_top_floor" value="1" />排除頂樓加蓋</label>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="submit" class="btn-primary" id="save-btn">儲存訂閱</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Tab: View ── -->
+  <div id="tab-view" class="tab-content">
+    <div id="view-loading" class="loading-state">載入中...</div>
+    <div id="view-empty" class="empty-state" style="display:none">
+      <p>尚未設定訂閱</p>
+      <button type="button" class="btn-primary" onclick="switchTab('settings')">前往設定</button>
+    </div>
+    <div id="view-content" style="display:none">
+      <div class="status-badge-row">
+        <span id="view-status-badge" class="badge"></span>
+      </div>
+      <dl id="view-details" class="detail-list"></dl>
+      <div class="actions">
+        <button type="button" class="btn-secondary" onclick="switchTab('settings')">修改設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab: Manage ── -->
+  <div id="tab-manage" class="tab-content">
+    <div id="manage-loading" class="loading-state">載入中...</div>
+    <div id="manage-empty" class="empty-state" style="display:none">
+      <p>尚未設定訂閱</p>
+      <button type="button" class="btn-primary" onclick="switchTab('settings')">前往設定</button>
+    </div>
+    <div id="manage-content" style="display:none">
+      <section class="section">
+        <h2 class="section-title">通知狀態</h2>
+        <div class="manage-row">
+          <span id="manage-status-text" class="manage-status-text"></span>
+          <button type="button" id="toggle-status-btn" class="btn-primary"></button>
+        </div>
+      </section>
+      <section class="section">
+        <h2 class="section-title danger-title">危險操作</h2>
+        <button type="button" id="delete-btn" class="btn-danger">刪除訂閱</button>
+      </section>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
