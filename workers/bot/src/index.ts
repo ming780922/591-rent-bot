@@ -45,6 +45,7 @@ export default {
           Authorization: `Bearer ${env.GH_TOKEN}`,
           Accept: 'application/vnd.github+json',
           'Content-Type': 'application/json',
+          'User-Agent': '591-rent-bot',
         },
         body: JSON.stringify({
           ref: 'main',
