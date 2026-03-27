@@ -166,13 +166,8 @@ export function subscribeCallbackHandler(env: Env) {
     await ctx.answerCallbackQuery()
 
     const data = ctx.callbackQuery.data as string
-    const session = await getSession(env.DB, telegramId)
-    if (!session) return
 
-    const state = session.state
-    const sessionData: Record<string, any> = JSON.parse(session.data)
-
-    // ── 覆蓋確認 ──
+    // ── 覆蓋確認（不需要 session）──
     if (data === 'subscribe:OVERWRITE') {
       await setSession(env.DB, telegramId, S.LOCATION_TYPE, {})
       await ctx.editMessageText('重新設定訂閱條件：')
@@ -180,10 +175,15 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
     if (data === 'subscribe:CANCEL') {
-      await deleteSession(env.DB, telegramId)
       await ctx.editMessageText('已取消。')
       return
     }
+
+    const session = await getSession(env.DB, telegramId)
+    if (!session) return
+
+    const state = session.state
+    const sessionData: Record<string, any> = JSON.parse(session.data)
 
     // ── 步驟 1：位置模式 ──
     if (state === S.LOCATION_TYPE) {
