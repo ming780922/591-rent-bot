@@ -1,0 +1,32 @@
+name: 591 Rent Crawler
+
+on:
+  workflow_dispatch:
+    inputs:
+      subscriptions:
+        description: 'JSON array of subscriptions'
+        required: true
+        type: string
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install playwright httpx
+          playwright install chromium --with-deps
+
+      - name: Run crawler
+        env:
+          SUBSCRIPTIONS: ${{ inputs.subscriptions }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: python crawler/crawler.py
