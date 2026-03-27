@@ -1,4 +1,4 @@
-name = "591-rent-bot"
+name = "591-rent-bot-api"
 main = "src/index.ts"
 compatibility_date = "2024-05-29"
 compatibility_flags = ["nodejs_compat"]
@@ -8,13 +8,8 @@ enabled = true
 
 [vars]
 ENVIRONMENT = "production"
-# Set to your Cloudflare Pages URL after deploying miniapp/ (project: 591-rent-miniapp)
-MINIAPP_URL = ""
 
 [[d1_databases]]
 binding = "DB"
 database_name = "rent-bot-db"
 database_id = "b90b0324-75f0-43be-87bf-7e10dc48582c"
-
-[triggers]
-crons = ["0 * * * *"]

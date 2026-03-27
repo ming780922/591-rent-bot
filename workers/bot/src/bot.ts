@@ -1,4 +1,4 @@
-import { Bot, Context, session, SessionFlavor } from 'grammy'
+import { Bot, Context, session, SessionFlavor, InlineKeyboard } from 'grammy'
 import { Env } from './db/queries'
 import { subscribeHandler, subscribeCallbackHandler } from './handlers/subscribe'
 import { statusHandler } from './handlers/status'
@@ -23,14 +23,33 @@ export function createBot(env: Env): Bot<BotContext> {
   // 指令
   bot.command('start', async (ctx) => {
     console.log(`[Bot] /start user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
+    const replyOpts: any = {}
+    if (env.MINIAPP_URL) {
+      replyOpts.reply_markup = new InlineKeyboard()
+        .webApp('📱 開啟訂閱管理介面', env.MINIAPP_URL)
+    }
     await ctx.reply(
       '歡迎使用 591 租屋通知 Bot！\n\n' +
       '可用指令：\n' +
       '/subscribe — 建立訂閱\n' +
       '/status — 查看目前訂閱\n' +
       '/pause — 暫停通知\n' +
-      '/resume — 恢復通知'
+      '/resume — 恢復通知\n' +
+      '/app — 開啟 Mini App 介面',
+      replyOpts
     )
+  })
+
+  bot.command('app', async (ctx) => {
+    console.log(`[Bot] /app user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
+    if (!env.MINIAPP_URL) {
+      await ctx.reply('Mini App 尚未設定，請使用指令管理訂閱。')
+      return
+    }
+    await ctx.reply('點擊下方按鈕開啟訂閱管理介面：', {
+      reply_markup: new InlineKeyboard()
+        .webApp('📱 開啟訂閱管理介面', env.MINIAPP_URL),
+    })
   })
 
   bot.command('subscribe', async (ctx) => {
