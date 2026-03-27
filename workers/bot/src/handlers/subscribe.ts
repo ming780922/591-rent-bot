@@ -544,9 +544,8 @@ function makeDistrictKb(city: string, selected: string[]): InlineKeyboard {
 
 function makeMrtLineKb(): InlineKeyboard {
   const kb = new InlineKeyboard()
-  Object.keys(MRT_LINES).forEach((line, i) => {
-    kb.text(line, `mrt_line:${line}`)
-    if ((i + 1) % 2 === 0) kb.row()
+  Object.keys(MRT_LINES).forEach((line) => {
+    kb.text(line, `mrt_line:${line}`).row()
   })
   return kb
 }
