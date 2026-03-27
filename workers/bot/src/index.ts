@@ -21,15 +21,19 @@ export default {
     const { build591Url } = await import('./utils/build-url')
 
     const result = await getAllActiveSubscriptions(env.DB)
-    if (!result.results.length) return
+    if (!result.results.length) {
+      console.log('[Cron] 無訂閱，跳過')
+      return
+    }
 
     const subscriptions = result.results.map((sub: any) => ({
       chat_id: String(sub.telegram_id),
       urls: build591Url(sub),
     }))
 
-    // 觸發 GitHub Actions
-    await fetch(
+    console.log(`[Cron] 觸發 GHA，共 ${subscriptions.length} 個訂閱`)
+
+    const resp = await fetch(
       `https://api.github.com/repos/${env.GH_REPO}/actions/workflows/crawl.yml/dispatches`,
       {
         method: 'POST',
@@ -45,7 +49,14 @@ export default {
       }
     )
 
-    // 更新每個訂閱的 last_run_at
+    if (!resp.ok) {
+      const body = await resp.text()
+      console.error(`[Cron] GHA 觸發失敗: ${resp.status} ${body}`)
+      return
+    }
+
+    console.log(`[Cron] GHA 觸發成功: ${resp.status}`)
+
     for (const sub of result.results as any[]) {
       await updateLastRunAt(env.DB, sub.id)
     }
