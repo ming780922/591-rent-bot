@@ -20,11 +20,15 @@ export default {
     const { getAllActiveSubscriptions, updateLastRunAt } = await import('./db/queries')
     const { build591Url } = await import('./utils/build-url')
 
+    console.log('[Cron] 開始執行排程')
+
     const result = await getAllActiveSubscriptions(env.DB)
     if (!result.results.length) {
       console.log('[Cron] 無訂閱，跳過')
       return
     }
+
+    console.log(`[Cron] 查詢到 ${result.results.length} 筆 active 訂閱`)
 
     const subscriptions = result.results.map((sub: any) => ({
       chat_id: String(sub.telegram_id),

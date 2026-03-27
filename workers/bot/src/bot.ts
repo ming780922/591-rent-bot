@@ -22,6 +22,7 @@ export function createBot(env: Env): Bot<BotContext> {
 
   // 指令
   bot.command('start', async (ctx) => {
+    console.log(`[Bot] /start user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
     await ctx.reply(
       '歡迎使用 591 租屋通知 Bot！\n\n' +
       '可用指令：\n' +
@@ -32,10 +33,22 @@ export function createBot(env: Env): Bot<BotContext> {
     )
   })
 
-  bot.command('subscribe', subscribeHandler(env))
-  bot.command('status', statusHandler(env))
-  bot.command('pause', pauseHandler(env))
-  bot.command('resume', resumeHandler(env))
+  bot.command('subscribe', async (ctx) => {
+    console.log(`[Bot] /subscribe user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
+    return subscribeHandler(env)(ctx)
+  })
+  bot.command('status', async (ctx) => {
+    console.log(`[Bot] /status user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
+    return statusHandler(env)(ctx)
+  })
+  bot.command('pause', async (ctx) => {
+    console.log(`[Bot] /pause user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
+    return pauseHandler(env)(ctx)
+  })
+  bot.command('resume', async (ctx) => {
+    console.log(`[Bot] /resume user=${ctx.from?.id} username=${ctx.from?.username ?? '-'}`)
+    return resumeHandler(env)(ctx)
+  })
 
   // Callback query（Inline Keyboard 點擊）
   bot.on('callback_query:data', subscribeCallbackHandler(env))

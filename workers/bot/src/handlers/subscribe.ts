@@ -442,6 +442,7 @@ export function subscribeCallbackHandler(env: Env) {
       if (data === 'confirm:YES') {
         await createSubscription(env.DB, telegramId, sessionData)
         await deleteSession(env.DB, telegramId)
+        console.log(`[Bot] subscription.created user=${telegramId} location_type=${sessionData.location_type} locations=${JSON.stringify(sessionData.locations)}`)
         await ctx.editMessageText(
           '✅ 訂閱成功！\n\n系統將每小時自動搜尋符合條件的新房源並通知你。\n\n使用 /status 查看訂閱設定\n使用 /pause 暫停通知'
         )
