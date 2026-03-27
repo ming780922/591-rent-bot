@@ -73,10 +73,11 @@ async def send_telegram(chat_id: str, items: list) -> None:
     async with httpx.AsyncClient(timeout=30) as client:
         # 先推播摘要
         summary = f"找到 {len(items)} 筆新房源："
-        await client.post(f"{TELEGRAM_API}/sendMessage", json={
+        resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
             "chat_id": chat_id,
             "text": summary,
         })
+        print(f"  摘要推播狀態: {resp.status_code} {resp.text}")
 
         # 每筆獨立推播（最多 20 筆避免洗版）
         for item in items[:20]:
@@ -90,12 +91,13 @@ async def send_telegram(chat_id: str, items: list) -> None:
                 f"{item.get('floor', '')}  更新：{item.get('update_time', '')}\n"
                 f"{link}"
             )
-            await client.post(f"{TELEGRAM_API}/sendMessage", json={
+            resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
                 "chat_id": chat_id,
                 "text": text,
                 "parse_mode": "Markdown",
                 "disable_web_page_preview": False,
             })
+            print(f"  推播狀態: {resp.status_code} | {resp.text[:100]}")
             await asyncio.sleep(0.3)  # 避免打太快
 
 
