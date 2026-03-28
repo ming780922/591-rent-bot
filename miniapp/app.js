@@ -47,12 +47,27 @@ async function apiCall(method, path, body) {
     },
   }
   if (body !== undefined) opts.body = JSON.stringify(body)
-  const res = await fetch(API_BASE + path, opts)
+  let res
+  try {
+    res = await fetch(API_BASE + path, opts)
+  } catch (err) {
+    showError('網路錯誤：' + err.message)
+    throw err
+  }
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`API ${method} ${path} failed (${res.status}): ${text}`)
+    const err = new Error(`API ${method} ${path} failed (${res.status}): ${text}`)
+    showError(err.message)
+    throw err
   }
   return res.json()
+}
+
+// ── Error banner ─────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('error-banner')
+  el.textContent = msg
+  el.style.display = ''
 }
 
 // ── Toast ────────────────────────────────────────
@@ -587,6 +602,11 @@ function resetForm() {
 
 // ── Init ──────────────────────────────────────────
 async function init() {
+  if (!tg.initData) {
+    showError('請從 Telegram 開啟此頁面（initData 為空）')
+    return
+  }
+
   populateCitySelect()
 
   // Try to load existing subscription to pre-fill settings form
@@ -599,6 +619,7 @@ async function init() {
   } catch (e) {
     // Not fatal — user may not have a subscription yet
     console.warn('init load failed:', e.message)
+    showError('載入訂閱失敗：' + e.message)
   }
 }
 
