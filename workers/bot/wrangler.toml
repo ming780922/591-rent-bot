@@ -10,7 +10,7 @@ head_sampling_rate = 1
 [vars]
 ENVIRONMENT = "production"
 # Set to your Cloudflare Pages URL after deploying miniapp/ (project: 591-rent-miniapp)
-MINIAPP_URL = ""
+MINIAPP_URL = "https://591-rent-miniapp.pages.dev"
 
 [[d1_databases]]
 binding = "DB"

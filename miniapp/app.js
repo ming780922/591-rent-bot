@@ -1,6 +1,6 @@
 // ── Configuration ────────────────────────────────
 // Replace with your deployed API worker URL after deployment
-const API_BASE = 'https://591-rent-bot-api.PLACEHOLDER.workers.dev'
+const API_BASE = '__API_WORKER_URL__'
 
 // ── Telegram WebApp init ──────────────────────────
 const tg = window.Telegram.WebApp
