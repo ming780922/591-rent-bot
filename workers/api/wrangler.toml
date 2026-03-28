@@ -1,6 +1,6 @@
 name = "591-rent-bot-api"
 main = "src/index.ts"
-compatibility_date = "2024-05-29"
+compatibility_date = "2025-03-28"
 compatibility_flags = ["nodejs_compat"]
 
 [observability]
