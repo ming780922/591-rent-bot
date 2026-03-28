@@ -222,15 +222,6 @@ function renderSelectedMrtTags() {
   })
 }
 
-// ── Location type toggle ──────────────────────────
-document.querySelectorAll('input[name="location_type"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    const isTown = radio.value === 'town'
-    document.getElementById('town-selector').style.display = isTown ? '' : 'none'
-    document.getElementById('mrt-selector').style.display = isTown ? 'none' : ''
-  })
-})
-
 // ── City select handler ───────────────────────────
 document.getElementById('city-select').addEventListener('change', function () {
   const city = this.value
@@ -276,21 +267,11 @@ document.getElementById('add-line-btn').addEventListener('click', () => {
 
 // ── Build filter payload from form ────────────────
 function buildPayload() {
-  const locType = document.querySelector('input[name="location_type"]:checked').value
-
-  let locations
-  if (locType === 'town') {
-    if (selectedAreas.length === 0) {
-      throw new Error('請至少選擇一個區域')
-    }
-    locations = { areas: selectedAreas }
-  } else {
-    const validLines = selectedMrtLines.filter(l => l.stations.length > 0)
-    if (validLines.length === 0) {
-      throw new Error('請至少選擇一個捷運站點')
-    }
-    locations = { lines: validLines }
+  const validLines = selectedMrtLines.filter(l => l.stations.length > 0)
+  if (selectedAreas.length === 0 && validLines.length === 0) {
+    throw new Error('請至少選擇一個區域或捷運站點')
   }
+  const locations = { areas: selectedAreas, lines: validLines }
 
   const getChecked = (name) => {
     const vals = [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value)
@@ -308,7 +289,6 @@ function buildPayload() {
   }
 
   return {
-    location_type: locType,
     locations,
     room_type: getChecked('room_type'),
     rent_min: getNum('rent_min'),
@@ -340,20 +320,11 @@ function fillForm(sub) {
 
   const f = sub.filters
 
-  // Location type
-  const locRadio = document.querySelector(`input[name="location_type"][value="${f.location_type}"]`)
-  if (locRadio) {
-    locRadio.checked = true
-    locRadio.dispatchEvent(new Event('change'))
-  }
-
-  if (f.location_type === 'town' && f.locations && f.locations.areas) {
-    selectedAreas = [...f.locations.areas]
-    renderSelectedAreaTags()
-  } else if (f.location_type === 'mrt' && f.locations && f.locations.lines) {
-    selectedMrtLines = f.locations.lines.map(l => ({ line: l.line, stations: [...(l.stations || [])] }))
-    renderSelectedMrtTags()
-  }
+  // Location
+  selectedAreas = [...(f.locations?.areas ?? [])]
+  renderSelectedAreaTags()
+  selectedMrtLines = (f.locations?.lines ?? []).map(l => ({ line: l.line, stations: [...(l.stations || [])] }))
+  renderSelectedMrtTags()
 
   // Multi-select checkboxes
   const setChecked = (name, csvVal) => {
@@ -449,22 +420,25 @@ async function loadViewTab() {
     }
 
     // Location
-    let locText = ''
-    if (f.location_type === 'town' && f.locations && f.locations.areas) {
+    const areas = f.locations?.areas ?? []
+    const mLines = f.locations?.lines ?? []
+    if (areas.length) {
       const grouped = {}
-      f.locations.areas.forEach(({ city, region }) => {
+      areas.forEach(({ city, region }) => {
         if (!grouped[city]) grouped[city] = []
         grouped[city].push(region)
       })
-      locText = Object.entries(grouped).map(([city, regions]) =>
+      const townText = Object.entries(grouped).map(([city, regions]) =>
         regions.length ? `${city}（${regions.join('、')}）` : city
       ).join('、')
-    } else if (f.location_type === 'mrt' && f.locations && f.locations.lines) {
-      locText = f.locations.lines.map(l =>
+      addRow('鄉鎮', townText)
+    }
+    if (mLines.length) {
+      const mrtText = mLines.map(l =>
         `${l.line}（${(l.stations || []).join('、')}）`
       ).join('、')
+      addRow('捷運', mrtText)
     }
-    addRow('位置', locText)
     addRow('房屋類型', f.room_type?.replace(/,/g, '、'))
     if (f.rent_min || f.rent_max) {
       addRow('租金', `${f.rent_min ? f.rent_min + ' 元' : '不限'} ～ ${f.rent_max ? f.rent_max + ' 元' : '不限'}`)
@@ -591,8 +565,6 @@ function resetForm() {
   document.getElementById('mrt-station-field').style.display = 'none'
   document.getElementById('add-area-btn').style.display = 'none'
   document.getElementById('add-line-btn').style.display = 'none'
-  document.getElementById('mrt-selector').style.display = 'none'
-  document.getElementById('town-selector').style.display = ''
   // Uncheck all chip checkboxes visually
   document.querySelectorAll('.chip input[type="checkbox"]').forEach(cb => {
     cb.checked = false

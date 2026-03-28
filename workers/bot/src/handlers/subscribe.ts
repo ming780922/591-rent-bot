@@ -5,7 +5,6 @@ import { Env, upsertUser, getSubscription, createSubscription, setSession, getSe
 // ── 狀態常數 ────────────────────────────────────────
 const S = {
   IDLE: 'IDLE',
-  LOCATION_TYPE: 'LOCATION_TYPE',
   SELECT_CITY: 'SELECT_CITY',
   SELECT_DISTRICT: 'SELECT_DISTRICT',
   SELECT_MRT_LINE: 'SELECT_MRT_LINE',
@@ -109,11 +108,14 @@ function makeFeaturesKb(selected: Record<string, number>): InlineKeyboard {
 
 function buildConfirmText(data: Record<string, any>): string {
   const loc = data.locations
-  let locText = ''
-  if (data.location_type === 'town') {
-    locText = loc.areas.map((a: any) => `${a.city}${a.region}`).join('、')
-  } else {
-    locText = loc.lines.map((l: any) => `${l.line}（${l.stations.join('、')}）`).join('、')
+  const areas = loc.areas ?? []
+  const lines = loc.lines ?? []
+  const locLines: string[] = []
+  if (areas.length) {
+    locLines.push(`🏙 鄉鎮：${areas.map((a: any) => `${a.city}${a.region}`).join('、')}`)
+  }
+  if (lines.length) {
+    locLines.push(`🚇 捷運：${lines.map((l: any) => `${l.line}（${l.stations.join('、')}）`).join('、')}`)
   }
 
   const featLabels = FEATURES
@@ -123,7 +125,7 @@ function buildConfirmText(data: Record<string, any>): string {
 
   return [
     '請確認以下訂閱設定：\n',
-    `📍 位置：${locText}`,
+    ...locLines,
     data.room_type ? `🏠 類型：${data.room_type}` : null,
     (data.rent_min || data.rent_max)
       ? `💰 租金：${data.rent_min || '不限'} ~ ${data.rent_max || '不限'} 元` : null,
@@ -153,8 +155,8 @@ export function subscribeHandler(env: Env) {
       return
     }
 
-    await setSession(env.DB, telegramId, S.LOCATION_TYPE, {})
-    await askLocationType(ctx)
+    await setSession(env.DB, telegramId, S.SELECT_CITY, { locations: { areas: [], lines: [] } })
+    await ctx.reply('選擇縣市：', { reply_markup: makeCityKb() })
   }
 }
 
@@ -169,9 +171,8 @@ export function subscribeCallbackHandler(env: Env) {
 
     // ── 覆蓋確認（不需要 session）──
     if (data === 'subscribe:OVERWRITE') {
-      await setSession(env.DB, telegramId, S.LOCATION_TYPE, {})
-      await ctx.editMessageText('重新設定訂閱條件：')
-      await askLocationType(ctx)
+      await setSession(env.DB, telegramId, S.SELECT_CITY, { locations: { areas: [], lines: [] } })
+      await ctx.editMessageText('重新設定訂閱條件，選擇縣市：', { reply_markup: makeCityKb() })
       return
     }
     if (data === 'subscribe:CANCEL') {
@@ -185,23 +186,7 @@ export function subscribeCallbackHandler(env: Env) {
     const state = session.state
     const sessionData: Record<string, any> = JSON.parse(session.data)
 
-    // ── 步驟 1：位置模式 ──
-    if (state === S.LOCATION_TYPE) {
-      if (data === 'loc_type:town') {
-        sessionData.location_type = 'town'
-        sessionData.locations = { areas: [] }
-        await setSession(env.DB, telegramId, S.SELECT_CITY, sessionData)
-        await ctx.editMessageText('選擇縣市：', { reply_markup: makeCityKb() })
-      } else if (data === 'loc_type:mrt') {
-        sessionData.location_type = 'mrt'
-        sessionData.locations = { lines: [] }
-        await setSession(env.DB, telegramId, S.SELECT_MRT_LINE, sessionData)
-        await ctx.editMessageText('選擇捷運路線：', { reply_markup: makeMrtLineKb() })
-      }
-      return
-    }
-
-    // ── 步驟 2a：選縣市 ──
+    // ── 步驟 1：選縣市 ──
     if (state === S.SELECT_CITY) {
       const city = data.replace('city:', '')
       sessionData._currentCity = city
@@ -214,14 +199,15 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 3a：選區域 ──
+    // ── 步驟 2：選區域 ──
     if (state === S.SELECT_DISTRICT) {
       const city = sessionData._currentCity
 
       if (data === 'district:DONE' || data === 'district:SKIP') {
-        await setSession(env.DB, telegramId, S.SELECT_ROOM_TYPE, sessionData)
-        await ctx.editMessageText('選擇租屋類型（可多選）：', {
-          reply_markup: makeMultiSelectKb(ROOM_TYPES, sessionData.room_type?.split(',') ?? [], 'room'),
+        // 完成鄉鎮選擇，進入捷運選擇
+        await setSession(env.DB, telegramId, S.SELECT_MRT_LINE, sessionData)
+        await ctx.editMessageText('選擇捷運路線（可多選）：\n（若不需要捷運篩選，點「跳過捷運」）', {
+          reply_markup: makeMrtLineKb(),
         })
         return
       }
@@ -250,8 +236,23 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 2b：選捷運路線 ──
+    // ── 步驟 3：選捷運路線 ──
     if (state === S.SELECT_MRT_LINE) {
+      if (data === 'mrt_line:SKIP') {
+        // 跳過捷運，驗證至少有鄉鎮或捷運其一
+        const areas = sessionData.locations.areas ?? []
+        const lines = sessionData.locations.lines ?? []
+        if (areas.length === 0 && lines.length === 0) {
+          await ctx.answerCallbackQuery('請至少選擇一個區域或捷運站點')
+          return
+        }
+        await setSession(env.DB, telegramId, S.SELECT_ROOM_TYPE, sessionData)
+        await ctx.editMessageText('選擇租屋類型（可多選）：', {
+          reply_markup: makeMultiSelectKb(ROOM_TYPES, sessionData.room_type?.split(',') ?? [], 'room'),
+        })
+        return
+      }
+
       const line = data.replace('mrt_line:', '')
       sessionData._currentLine = line
       const currentStations = (sessionData.locations.lines.find((l: any) => l.line === line)?.stations) ?? []
@@ -262,11 +263,18 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 3b：選捷運站 ──
+    // ── 步驟 4：選捷運站 ──
     if (state === S.SELECT_MRT_STATION) {
       const line = sessionData._currentLine
 
       if (data === 'mrt_station:DONE' || data === 'mrt_station:SKIP') {
+        // 驗證至少有鄉鎮或捷運其一
+        const areas = sessionData.locations.areas ?? []
+        const lines = sessionData.locations.lines ?? []
+        if (areas.length === 0 && lines.length === 0) {
+          await ctx.answerCallbackQuery('請至少選擇一個區域或捷運站點')
+          return
+        }
         await setSession(env.DB, telegramId, S.SELECT_ROOM_TYPE, sessionData)
         await ctx.editMessageText('選擇租屋類型（可多選）：', {
           reply_markup: makeMultiSelectKb(ROOM_TYPES, sessionData.room_type?.split(',') ?? [], 'room'),
@@ -299,7 +307,7 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 4：類型 ──
+    // ── 步驟 5：類型 ──
     if (state === S.SELECT_ROOM_TYPE) {
       if (data === 'room:SKIP') {
         sessionData.room_type = null
@@ -323,7 +331,7 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 5：租金 ──
+    // ── 步驟 6：租金 ──
     if (state === S.SET_RENT) {
       if (data === 'rent:SKIP') {
         sessionData.rent_min = null
@@ -343,7 +351,7 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 6：格局 ──
+    // ── 步驟 7：格局 ──
     if (state === S.SELECT_LAYOUT) {
       if (data === 'layout:SKIP') {
         sessionData.layout = null
@@ -367,7 +375,7 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 7：坪數 ──
+    // ── 步驟 8：坪數 ──
     if (state === S.SET_SIZE) {
       if (data === 'size:SKIP') {
         sessionData.size_min = null
@@ -387,7 +395,7 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 8：型態 ──
+    // ── 步驟 9：型態 ──
     if (state === S.SELECT_SHAPE) {
       if (data === 'shape:SKIP') {
         sessionData.shape = null
@@ -413,7 +421,7 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 9：特色 ──
+    // ── 步驟 10：特色 ──
     if (state === S.SELECT_FEATURES) {
       if (data === 'feat:SKIP') {
         // 全不選，保持 default 0
@@ -437,19 +445,18 @@ export function subscribeCallbackHandler(env: Env) {
       return
     }
 
-    // ── 步驟 10：確認 ──
+    // ── 步驟 11：確認 ──
     if (state === S.CONFIRM) {
       if (data === 'confirm:YES') {
         await createSubscription(env.DB, telegramId, sessionData)
         await deleteSession(env.DB, telegramId)
-        console.log(`[Bot] subscription.created user=${telegramId} location_type=${sessionData.location_type} locations=${JSON.stringify(sessionData.locations)}`)
+        console.log(`[Bot] subscription.created user=${telegramId} locations=${JSON.stringify(sessionData.locations)}`)
         await ctx.editMessageText(
           '✅ 訂閱成功！\n\n系統將每小時自動搜尋符合條件的新房源並通知你。\n\n使用 /status 查看訂閱設定\n使用 /pause 暫停通知'
         )
       } else if (data === 'confirm:RESET') {
-        await setSession(env.DB, telegramId, S.LOCATION_TYPE, {})
-        await ctx.editMessageText('重新設定：')
-        await askLocationType(ctx)
+        await setSession(env.DB, telegramId, S.SELECT_CITY, { locations: { areas: [], lines: [] } })
+        await ctx.editMessageText('重新設定，選擇縣市：', { reply_markup: makeCityKb() })
       }
       return
     }
@@ -511,14 +518,6 @@ async function nextAfterSize(ctx: any, db: D1Database, telegramId: number, sessi
 }
 
 // ── Keyboard 產生函式 ───────────────────────────────
-async function askLocationType(ctx: any) {
-  await ctx.reply('請選擇位置搜尋方式：', {
-    reply_markup: new InlineKeyboard()
-      .text('按鄉鎮區域', 'loc_type:town')
-      .text('按捷運站', 'loc_type:mrt'),
-  })
-}
-
 function makeCityKb(): InlineKeyboard {
   const kb = new InlineKeyboard()
   CITIES.forEach((city, i) => {
@@ -547,6 +546,7 @@ function makeMrtLineKb(): InlineKeyboard {
   Object.keys(MRT_LINES).forEach((line) => {
     kb.text(line, `mrt_line:${line}`).row()
   })
+  kb.row().text('跳過捷運', 'mrt_line:SKIP')
   return kb
 }
 

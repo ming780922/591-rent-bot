@@ -104,7 +104,6 @@ async function upsertSubscription(
   if (!sub) throw new Error('Failed to create subscription')
 
   const {
-    location_type,
     locations,
     room_type,
     rent_min,
@@ -133,16 +132,16 @@ async function upsertSubscription(
   await db
     .prepare(
       `INSERT INTO subscription_filters
-         (subscription_id, location_type, locations,
+         (subscription_id, locations,
           room_type, rent_min, rent_max,
           layout, size_min, size_max, shape,
           feat_new, feat_near_mrt, feat_pet, feat_cook,
           feat_parking, feat_elevator, feat_balcony, feat_short_term,
           feat_social_housing, feat_subsidy, feat_elderly,
           feat_invoice, feat_register, exclude_top_floor, extra_filters)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(subscription_id) DO UPDATE SET
-         location_type=excluded.location_type, locations=excluded.locations,
+         locations=excluded.locations,
          room_type=excluded.room_type, rent_min=excluded.rent_min, rent_max=excluded.rent_max,
          layout=excluded.layout, size_min=excluded.size_min, size_max=excluded.size_max,
          shape=excluded.shape, feat_new=excluded.feat_new, feat_near_mrt=excluded.feat_near_mrt,
@@ -156,7 +155,6 @@ async function upsertSubscription(
     )
     .bind(
       sub.id,
-      location_type,
       typeof locations === 'string' ? locations : JSON.stringify(locations),
       room_type ?? null,
       rent_min ?? null,
@@ -286,8 +284,9 @@ export default {
       }
 
       // Validate required fields
-      if (!body.location_type || !body.locations) {
-        return err('location_type and locations are required', 400, origin)
+      const locs = body.locations as any
+      if (!locs || (((!locs.areas || locs.areas.length === 0) && (!locs.lines || locs.lines.length === 0)))) {
+        return err('locations with at least one area or line is required', 400, origin)
       }
 
       try {

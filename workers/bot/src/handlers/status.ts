@@ -13,13 +13,19 @@ export function statusHandler(env: Env) {
     }
 
     const locations = JSON.parse(sub.locations)
-    const locText = sub.location_type === 'town'
-      ? locations.areas.map((a: any) => `${a.city}${a.region}`).join('、')
-      : locations.lines.map((l: any) => `${l.line}（${l.stations.join('、')}）`).join('、')
+    const areas = locations.areas ?? []
+    const lines = locations.lines ?? []
+    const locLines: string[] = []
+    if (areas.length) {
+      locLines.push(`鄉鎮：${areas.map((a: any) => `${a.city}${a.region}`).join('、')}`)
+    }
+    if (lines.length) {
+      locLines.push(`捷運：${lines.map((l: any) => `${l.line}（${l.stations.join('、')}）`).join('、')}`)
+    }
 
-    const lines = [
+    const displayLines = [
       `狀態：${sub.status === 'active' ? '通知中' : '已暫停'}`,
-      `位置：${locText}`,
+      ...locLines,
       sub.room_type ? `類型：${sub.room_type}` : null,
       (sub.rent_min || sub.rent_max)
         ? `租金：${sub.rent_min ?? '不限'} ~ ${sub.rent_max ?? '不限'} 元` : null,
@@ -29,6 +35,6 @@ export function statusHandler(env: Env) {
       sub.shape ? `型態：${sub.shape}` : null,
     ].filter(Boolean).join('\n')
 
-    await ctx.reply(`目前訂閱設定：\n\n${lines}`)
+    await ctx.reply(`目前訂閱設定：\n\n${displayLines}`)
   }
 }
