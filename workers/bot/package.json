@@ -5,14 +5,17 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 execute rent-bot-db --file=src/db/schema.sql"
+    "db:migrate": "wrangler d1 execute rent-bot-db --file=src/db/schema.sql",
+    "test": "vitest run"
   },
   "dependencies": {
     "grammy": "^1.21.0"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.13.5",
     "@cloudflare/workers-types": "^4.20240529.0",
     "typescript": "^5.4.5",
+    "vitest": "^4.1.2",
     "wrangler": "^3.57.0"
   }
 }

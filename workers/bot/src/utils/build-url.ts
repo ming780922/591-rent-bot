@@ -24,30 +24,28 @@ const SHAPE_ID: Record<string, string> = {
 }
 
 export function build591Url(sub: Record<string, any>): string[] {
-  const locations = JSON.parse(sub.locations)
+  const locations = JSON.parse(sub.locations as string)
   const urls: string[] = []
 
   const baseParams = buildBaseParams(sub)
 
-  if (sub.location_type === 'town') {
-    for (const area of locations.areas) {
+  for (const area of locations.areas ?? []) {
+    const params = new URLSearchParams({
+      ...baseParams,
+      regionid: CITY_ID[area.city] ?? '',
+      section: area.region,
+    })
+    urls.push(`https://rent.591.com.tw/list?${params}`)
+  }
+
+  for (const line of locations.lines ?? []) {
+    for (const station of line.stations ?? []) {
       const params = new URLSearchParams({
         ...baseParams,
-        regionid: CITY_ID[area.city] ?? '',
-        section: area.region,
+        mrtSerialNo: line.line,
+        mrt: station,
       })
       urls.push(`https://rent.591.com.tw/list?${params}`)
-    }
-  } else {
-    for (const line of locations.lines) {
-      for (const station of line.stations) {
-        const params = new URLSearchParams({
-          ...baseParams,
-          mrtSerialNo: line.line,
-          mrt: station,
-        })
-        urls.push(`https://rent.591.com.tw/list?${params}`)
-      }
     }
   }
 

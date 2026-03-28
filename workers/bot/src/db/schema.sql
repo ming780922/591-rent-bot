@@ -16,7 +16,6 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 CREATE TABLE IF NOT EXISTS subscription_filters (
   subscription_id      INTEGER PRIMARY KEY REFERENCES subscriptions(id),
-  location_type        TEXT NOT NULL CHECK(location_type IN ('town','mrt')),
   locations            TEXT NOT NULL,
   room_type            TEXT,
   rent_min             INTEGER,

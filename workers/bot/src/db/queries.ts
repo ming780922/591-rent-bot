@@ -75,7 +75,7 @@ export async function createSubscription(
   if (!sub) throw new Error('Failed to create subscription')
 
   const {
-    location_type, locations,
+    locations,
     room_type, rent_min, rent_max,
     layout, size_min, size_max, shape,
     feat_new, feat_near_mrt, feat_pet, feat_cook,
@@ -87,16 +87,16 @@ export async function createSubscription(
 
   await db.prepare(
     `INSERT INTO subscription_filters
-       (subscription_id, location_type, locations,
+       (subscription_id, locations,
         room_type, rent_min, rent_max,
         layout, size_min, size_max, shape,
         feat_new, feat_near_mrt, feat_pet, feat_cook,
         feat_parking, feat_elevator, feat_balcony, feat_short_term,
         feat_social_housing, feat_subsidy, feat_elderly,
         feat_invoice, feat_register, exclude_top_floor, extra_filters)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT(subscription_id) DO UPDATE SET
-       location_type=excluded.location_type, locations=excluded.locations,
+       locations=excluded.locations,
        room_type=excluded.room_type, rent_min=excluded.rent_min, rent_max=excluded.rent_max,
        layout=excluded.layout, size_min=excluded.size_min, size_max=excluded.size_max,
        shape=excluded.shape, feat_new=excluded.feat_new, feat_near_mrt=excluded.feat_near_mrt,
@@ -107,7 +107,7 @@ export async function createSubscription(
        feat_invoice=excluded.feat_invoice, feat_register=excluded.feat_register,
        exclude_top_floor=excluded.exclude_top_floor, extra_filters=excluded.extra_filters`
   ).bind(
-    sub.id, location_type, JSON.stringify(locations),
+    sub.id, JSON.stringify(locations),
     room_type ?? null, rent_min ?? null, rent_max ?? null,
     layout ?? null, size_min ?? null, size_max ?? null, shape ?? null,
     feat_new ?? 0, feat_near_mrt ?? 0, feat_pet ?? 0, feat_cook ?? 0,
