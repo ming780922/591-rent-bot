@@ -21,6 +21,11 @@ jobs:
       - name: Install wrangler
         run: npm install -g wrangler
 
+      - name: Inject API Worker URL
+        env:
+          API_WORKER_URL: ${{ secrets.API_WORKER_URL }}
+        run: sed -i "s|__API_WORKER_URL__|${API_WORKER_URL}|g" miniapp/app.js
+
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
