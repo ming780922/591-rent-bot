@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import httpx
+from pathlib import Path
 from playwright.async_api import async_playwright
 
 SUBSCRIPTIONS: list[dict] = json.loads(os.environ["SUBSCRIPTIONS"])
@@ -37,8 +38,10 @@ EXTRACT_JS = """
             const lineEls = Array.from(item.querySelectorAll('span.line'));
             const updateEl = lineEls.find(el => el.textContent.includes('更新'));
             const updateTime = updateEl ? updateEl.textContent.trim() : '';
+            const regionMatch = allText.match(/([^\s]+區)/);
+            const region = regionMatch ? regionMatch[1] : '';
             return { id: dataId, title, price, layout, area, floor,
-                     update_time: updateTime, image, link };
+                     update_time: updateTime, image, link, region };
         });
     }
 """
@@ -65,39 +68,100 @@ async def crawl_591(browser, url: str) -> list:
         await page.close()
 
 
+async def fetch_screenshot(browser, url: str, item_id: str, screenshots_dir: Path) -> str | None:
+    page = await browser.new_page()
+    try:
+        await page.goto(url, wait_until='load', timeout=20000)
+        await page.evaluate("window.scrollTo(0, 0)")
+        path = screenshots_dir / f"{item_id}.jpg"
+        await page.screenshot(path=str(path), type='jpeg')
+        return str(path)
+    except Exception as e:
+        print(f"  截圖失敗 {item_id}: {e}")
+        return None
+    finally:
+        await page.close()
+
+
+async def enrich_with_screenshots(browser, items: list) -> None:
+    screenshots_dir = Path("screenshots")
+    screenshots_dir.mkdir(exist_ok=True)
+    sem = asyncio.Semaphore(3)
+
+    async def capture(item):
+        async with sem:
+            link = item.get('link', '')
+            if link and not link.startswith('http'):
+                link = f"https://rent.591.com.tw{link}"
+            item['screenshot_path'] = await fetch_screenshot(
+                browser, link, item['id'], screenshots_dir
+            ) if link else None
+
+    await asyncio.gather(*[capture(item) for item in items])
+
+
+def format_item(item: dict) -> str:
+    title = item.get('title') or '（無標題）'
+    link = item.get('link', '')
+    if link and not link.startswith('http'):
+        link = f"https://rent.591.com.tw{link}"
+    meta_parts = [
+        item.get('region', ''),
+        item.get('layout', ''),
+        item.get('area', ''),
+        item.get('floor', ''),
+        item.get('price', ''),
+        item.get('update_time', ''),
+    ]
+    meta = ' · '.join(p for p in meta_parts if p)
+    return f"🏠 <b>{title}</b>\n{meta}\n{link}"
+
+
 async def send_telegram(chat_id: str, items: list) -> None:
     if not items:
         print(f"  [chat_id={chat_id}] 無新結果，跳過推播")
         return
 
     async with httpx.AsyncClient(timeout=30) as client:
-        # 先推播摘要
-        summary = f"找到 {len(items)} 筆新房源："
+        # 先推播 header
         resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
             "chat_id": chat_id,
-            "text": summary,
+            "text": f"找到 {len(items)} 筆新房源",
         })
         print(f"  摘要推播狀態: {resp.status_code} {resp.text}")
 
         # 每筆獨立推播（最多 20 筆避免洗版）
         for item in items[:20]:
-            link = item.get('link', '')
-            if link and not link.startswith('http'):
-                link = f"https://rent.591.com.tw{link}"
+            caption = format_item(item)
+            screenshot_path = item.get('screenshot_path')
 
-            text = (
-                f"*{item.get('title', '(無標題)')}*\n"
-                f"{item.get('price', '')}  {item.get('layout', '')}  {item.get('area', '')}\n"
-                f"{item.get('floor', '')}  更新：{item.get('update_time', '')}\n"
-                f"{link}"
-            )
-            resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": "Markdown",
-                "disable_web_page_preview": False,
-            })
-            print(f"  推播狀態: {resp.status_code} | {resp.text[:100]}")
+            if screenshot_path and Path(screenshot_path).exists():
+                try:
+                    with open(screenshot_path, 'rb') as f:
+                        resp = await client.post(
+                            f"{TELEGRAM_API}/sendPhoto",
+                            data={"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"},
+                            files={"photo": f},
+                        )
+                    print(f"  推播狀態(photo): {resp.status_code} | {resp.text[:100]}")
+                except Exception as e:
+                    print(f"  sendPhoto 失敗，fallback sendMessage: {e}")
+                    resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
+                        "chat_id": chat_id,
+                        "text": caption,
+                        "parse_mode": "HTML",
+                        "disable_web_page_preview": False,
+                    })
+                    print(f"  推播狀態(fallback): {resp.status_code} | {resp.text[:100]}")
+            else:
+                resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
+                    "chat_id": chat_id,
+                    "text": caption,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": False,
+                })
+                print(f"  推播狀態(text): {resp.status_code} | {resp.text[:100]}")
+
             await asyncio.sleep(0.3)  # 避免打太快
 
 
@@ -124,6 +188,7 @@ async def main():
                             all_items.append(item)
 
                 print(f"  合計 {len(all_items)} 筆（去重後）")
+                await enrich_with_screenshots(browser, all_items)
                 await send_telegram(chat_id, all_items)
                 print(f"  [OK] 推播完成")
 
