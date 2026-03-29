@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { env, SELF } from 'cloudflare:test'
 
 // ── Schema setup ───────────────────────────────────────────────────────────
@@ -318,5 +318,60 @@ describe('DELETE /subscription', () => {
     const getRes = await SELF.fetch('http://localhost/subscription', { headers: { Authorization: auth } })
     const getJson = await getRes.json() as any
     expect(getJson.subscription).toBeNull()
+  })
+})
+
+describe('POST /search', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('有訂閱 → 200 ok（mock GitHub API 回傳 204）', async () => {
+    const userId = 50001
+    const initData = await buildValidInitData(env.BOT_TOKEN as string, userId, 'tester')
+    const auth = `tma ${initData}`
+
+    // Create subscription
+    await SELF.fetch('http://localhost/subscription', {
+      method: 'PUT',
+      headers: { Authorization: auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations: { areas: [{ city: '台北市', region: '大安區' }], lines: [] } }),
+    })
+
+    // Stub global fetch so GitHub API call returns 204
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url.includes('api.github.com')) {
+        return new Response(null, { status: 204 })
+      }
+      throw new Error(`Unexpected fetch to ${url}`)
+    })
+
+    const res = await SELF.fetch('http://localhost/search', {
+      method: 'POST',
+      headers: { Authorization: auth },
+    })
+    expect(res.status).toBe(200)
+    const json = await res.json() as any
+    expect(json.ok).toBe(true)
+  })
+
+  it('無訂閱 → 400 NO_SUBSCRIPTION', async () => {
+    const initData = await buildValidInitData(env.BOT_TOKEN as string, 50002, 'tester')
+    const res = await SELF.fetch('http://localhost/search', {
+      method: 'POST',
+      headers: { Authorization: `tma ${initData}` },
+    })
+    expect(res.status).toBe(400)
+    const json = await res.json() as any
+    expect(json.error).toBe('NO_SUBSCRIPTION')
+  })
+
+  it('initData 無效 → 401', async () => {
+    const res = await SELF.fetch('http://localhost/search', {
+      method: 'POST',
+      headers: { Authorization: 'tma invalid_data' },
+    })
+    expect(res.status).toBe(401)
   })
 })
