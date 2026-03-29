@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { build591Url } from './build-url'
+import { build591Url } from '../../../shared/build-url'
 
 // Helper: build a minimal subscription object
 function makeSub(locations: object, extra: Record<string, any> = {}): Record<string, any> {

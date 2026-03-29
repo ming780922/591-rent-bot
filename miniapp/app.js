@@ -395,11 +395,13 @@ async function loadViewTab() {
     if (!currentSub) {
       loading.style.display = 'none'
       empty.style.display = ''
+      document.getElementById('search-action').style.display = 'none'
       return
     }
 
     loading.style.display = 'none'
     content.style.display = ''
+    document.getElementById('search-action').style.display = ''
 
     const badge = document.getElementById('view-status-badge')
     badge.textContent = currentSub.status === 'active' ? '通知中' : '已暫停'
@@ -465,6 +467,39 @@ async function loadViewTab() {
     loading.textContent = '載入失敗：' + err.message
   }
 }
+
+// ── Search now button ─────────────────────────────
+document.getElementById('search-now-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('search-now-btn')
+  btn.disabled = true
+  btn.textContent = '搜尋中...'
+
+  try {
+    const initData = tg.initData || ''
+    const res = await fetch(API_BASE + '/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `tma ${initData}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (res.ok) {
+      showToast('✅ 搜尋已觸發，結果將透過 Bot 傳送')
+    } else {
+      const data = await res.json().catch(() => ({}))
+      if (data.error === 'NO_SUBSCRIPTION') {
+        showToast('❌ 請先建立訂閱')
+      } else {
+        showToast('❌ 觸發失敗，請稍後再試')
+      }
+    }
+  } catch {
+    showToast('❌ 觸發失敗，請稍後再試')
+  } finally {
+    btn.disabled = false
+    btn.textContent = '🔍 立即搜尋'
+  }
+})
 
 // ── Manage tab ────────────────────────────────────
 async function loadManageTab() {

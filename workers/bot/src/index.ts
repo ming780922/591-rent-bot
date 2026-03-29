@@ -18,7 +18,7 @@ export default {
 
   async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
     const { getAllActiveSubscriptions, updateLastRunAt } = await import('./db/queries')
-    const { build591Url } = await import('./utils/build-url')
+    const { build591Url } = await import('../../shared/build-url')
 
     console.log('[Cron] 開始執行排程')
 

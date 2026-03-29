@@ -1,6 +1,11 @@
+import { build591Url } from '../../shared/build-url'
+
 interface Env {
   DB: D1Database
   BOT_TOKEN: string
+  GITHUB_TOKEN: string
+  GITHUB_OWNER: string
+  GITHUB_REPO: string
 }
 
 // ── Telegram initData validation ───────────────────
@@ -210,7 +215,7 @@ async function deleteSubscription(db: D1Database, telegramId: number) {
 function corsHeaders(origin: string): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
   }
@@ -318,6 +323,41 @@ export default {
     // ── DELETE /subscription ───────────────────────
     if (request.method === 'DELETE' && path === '/subscription') {
       await deleteSubscription(env.DB, telegramId)
+      return json({ ok: true }, 200, origin)
+    }
+
+    // ── POST /search ───────────────────────────────
+    if (request.method === 'POST' && path === '/search') {
+      const row = await getSubscription(env.DB, telegramId)
+      if (!row) {
+        return json({ ok: false, error: 'NO_SUBSCRIPTION' }, 400, origin)
+      }
+
+      const subscriptions = [{
+        chat_id: String(telegramId),
+        urls: build591Url(row),
+      }]
+
+      const ghResp = await fetch(
+        `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/crawl.yml/dispatches`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+            'User-Agent': '591-rent-bot',
+          },
+          body: JSON.stringify({
+            ref: 'main',
+            inputs: { subscriptions: JSON.stringify(subscriptions) },
+          }),
+        }
+      )
+
+      if (!ghResp.ok) {
+        return json({ ok: false, error: 'TRIGGER_FAILED' }, 502, origin)
+      }
       return json({ ok: true }, 200, origin)
     }
 
