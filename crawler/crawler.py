@@ -71,30 +71,11 @@ async def crawl_591(browser, url: str) -> list:
 async def fetch_screenshot(browser, url: str, item_id: str, screenshots_dir: Path) -> str | None:
     page = await browser.new_page()
     try:
-        # 1. Wait for networkidle so lazy-loaded images have been requested
-        await page.goto(url, wait_until='networkidle', timeout=30000)
-
-        # 2. Wait for all <img> elements to finish loading/decoding
-        await page.evaluate("""
-            () => {
-                const imgs = Array.from(document.querySelectorAll('img'));
-                return Promise.all(
-                    imgs.map(img =>
-                        img.complete && img.naturalWidth > 0
-                            ? Promise.resolve()
-                            : new Promise(resolve => {
-                                img.addEventListener('load', resolve, { once: true });
-                                img.addEventListener('error', resolve, { once: true });
-                            })
-                    )
-                );
-            }
-        """)
-
-        # 3. Extra buffer for final paint
-        await page.wait_for_timeout(500)
-
+        await page.goto(url, wait_until='load', timeout=15000)
+        await page.evaluate("window.scrollTo(0, 600)")
+        await page.wait_for_timeout(2500)
         await page.evaluate("window.scrollTo(0, 0)")
+        await page.wait_for_timeout(500)
         path = screenshots_dir / f"{item_id}.jpg"
         await page.screenshot(path=str(path), type='jpeg', quality=85)
         return str(path)
