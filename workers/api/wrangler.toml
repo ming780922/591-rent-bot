@@ -9,7 +9,7 @@ head_sampling_rate = 1
 
 [vars]
 ENVIRONMENT = "production"
-# GitHub Actions trigger secrets — set via: wrangler secret put GITHUB_TOKEN / GITHUB_OWNER / GITHUB_REPO
+# GitHub Actions trigger secrets — set via: wrangler secret put GH_TOKEN / GH_REPO
 
 [[d1_databases]]
 binding = "DB"
