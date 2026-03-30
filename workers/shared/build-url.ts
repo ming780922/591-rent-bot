@@ -7,6 +7,27 @@ const CITY_ID: Record<string, string> = {
   '宜蘭縣': '24', '花蓮縣': '25', '台東縣': '26', '澎湖縣': '27',
 }
 
+// 591 行政區 section ID 對照表（key 格式：城市_區域）
+const SECTION_ID: Record<string, string> = {
+  // 台北市 (region=1)
+  '台北市_中正區': '1', '台北市_大同區': '2', '台北市_中山區': '3',
+  '台北市_松山區': '4', '台北市_大安區': '5', '台北市_萬華區': '6',
+  '台北市_信義區': '7', '台北市_士林區': '8', '台北市_北投區': '9',
+  '台北市_內湖區': '10', '台北市_南港區': '11', '台北市_文山區': '12',
+  // 新北市 (region=3)
+  '新北市_板橋區': '26', '新北市_永和區': '37', '新北市_中和區': '38',
+  '新北市_三重區': '43', '新北市_新莊區': '44',
+  // 台中市 (region=8)
+  '台中市_中區': '98', '台中市_西區': '101', '台中市_北區': '102',
+  '台中市_北屯區': '103', '台中市_西屯區': '104', '台中市_南屯區': '105',
+  // 台南市 (region=15)
+  '台南市_東區': '206', '台南市_南區': '207', '台南市_安平區': '210',
+  '台南市_安南區': '211', '台南市_永康區': '212',
+  // 高雄市 (region=17)
+  '高雄市_苓雅區': '245', '高雄市_前鎮區': '249', '高雄市_三民區': '250',
+  '高雄市_大社區': '255', '高雄市_鳳山區': '268',
+}
+
 // 591 類型 ID 對照表
 const ROOM_TYPE_ID: Record<string, string> = {
   '整層住家': '1', '獨立套房': '2', '分租套房': '3',
@@ -30,10 +51,12 @@ export function build591Url(sub: Record<string, any>): string[] {
   const baseParams = buildBaseParams(sub)
 
   for (const area of locations.areas ?? []) {
+    const sectionKey = `${area.city}_${area.region}`
+    const sectionId = SECTION_ID[sectionKey]
     const params = new URLSearchParams({
       ...baseParams,
-      regionid: CITY_ID[area.city] ?? '',
-      section: area.region,
+      region: CITY_ID[area.city] ?? '',
+      ...(sectionId ? { section: sectionId } : {}),
     })
     urls.push(`https://rent.591.com.tw/list?${params}`)
   }

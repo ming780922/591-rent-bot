@@ -71,15 +71,26 @@ describe('build591Url', () => {
     expect(urls).toHaveLength(0)
   })
 
-  it('town URL contains correct regionid and section params', () => {
+  it('town URL contains correct region and section params', () => {
     const sub = makeSub({
       areas: [{ city: '台北市', region: '大安區' }],
       lines: [],
     })
     const [url] = build591Url(sub)
     const params = new URL(url).searchParams
-    expect(params.get('regionid')).toBe('1') // 台北市 → 1
-    expect(params.get('section')).toBe('大安區')
+    expect(params.get('region')).toBe('1')  // 台北市 → 1
+    expect(params.get('section')).toBe('5') // 大安區 → 5
+  })
+
+  it('town URL omits section param when district is not in SECTION_ID', () => {
+    const sub = makeSub({
+      areas: [{ city: '台北市', region: '未知區' }],
+      lines: [],
+    })
+    const [url] = build591Url(sub)
+    const params = new URL(url).searchParams
+    expect(params.get('region')).toBe('1')
+    expect(params.has('section')).toBe(false)
   })
 
   it('MRT URL contains correct mrtSerialNo and mrt params', () => {
