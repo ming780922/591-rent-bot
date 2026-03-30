@@ -3,9 +3,8 @@ import { build591Url } from '../../shared/build-url'
 interface Env {
   DB: D1Database
   BOT_TOKEN: string
-  GITHUB_TOKEN: string
-  GITHUB_OWNER: string
-  GITHUB_REPO: string
+  GH_TOKEN: string
+  GH_REPO: string
 }
 
 // ── Telegram initData validation ───────────────────
@@ -339,11 +338,11 @@ export default {
       }]
 
       const ghResp = await fetch(
-        `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/crawl.yml/dispatches`,
+        `https://api.github.com/repos/${env.GH_REPO}/actions/workflows/crawl.yml/dispatches`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+            Authorization: `Bearer ${env.GH_TOKEN}`,
             Accept: 'application/vnd.github+json',
             'Content-Type': 'application/json',
             'User-Agent': '591-rent-bot',
@@ -356,6 +355,8 @@ export default {
       )
 
       if (!ghResp.ok) {
+        const body = await ghResp.text()
+        console.error(`[Search] GHA 觸發失敗: ${ghResp.status} ${body}`)
         return json({ ok: false, error: 'TRIGGER_FAILED' }, 502, origin)
       }
       return json({ ok: true }, 200, origin)
