@@ -30,10 +30,11 @@ export default {
 
     console.log(`[Cron] 查詢到 ${result.results.length} 筆 active 訂閱`)
 
-    const subscriptions = result.results.map((sub: any) => ({
-      chat_id: String(sub.telegram_id),
-      urls: build591Url(sub),
-    }))
+    const subscriptions = result.results.map((sub: any) => {
+      const urls = build591Url(sub)
+      console.log(`[Cron] chat_id=${sub.telegram_id} urls: ${JSON.stringify(urls)}`)
+      return { chat_id: String(sub.telegram_id), urls }
+    })
 
     console.log(`[Cron] 觸發 GHA，共 ${subscriptions.length} 個訂閱`)
 
