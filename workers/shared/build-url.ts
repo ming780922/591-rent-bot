@@ -102,27 +102,59 @@ export function build591Url(sub: Record<string, any>): string[] {
 
   const baseParams = buildBaseParams(sub)
 
+  // 整理區域 (依縣市分群)
+  const cityGroups: Record<string, string[]> = {}
   for (const area of locations.areas ?? []) {
-    const sectionId = SECTION_ID[area.city]?.[area.region] ?? ''
-    const params = new URLSearchParams({
-      ...baseParams,
-      region: CITY_ID[area.city] ?? '',
-    })
-    if (sectionId) params.set('section', sectionId)
-    urls.push(`https://rent.591.com.tw/list?${params}`)
+    if (!cityGroups[area.city]) cityGroups[area.city] = []
+    const sectionId = SECTION_ID[area.city]?.[area.region]
+    if (sectionId) {
+      cityGroups[area.city].push(sectionId)
+    }
   }
 
+  // 產生區域網址 (每 5 個行政區合併為一個網址)
+  for (const [city, sections] of Object.entries(cityGroups)) {
+    const regionId = CITY_ID[city] ?? ''
+    if (!regionId) continue
+
+    if (sections.length === 0) {
+      const params = new URLSearchParams(baseParams)
+      params.set('region', regionId)
+      urls.push(`https://rent.591.com.tw/list?${params}`)
+    } else {
+      for (let i = 0; i < sections.length; i += 5) {
+        const chunk = sections.slice(i, i + 5)
+        const params = new URLSearchParams(baseParams)
+        params.set('region', regionId)
+        params.set('section', chunk.join(','))
+        urls.push(`https://rent.591.com.tw/list?${params}`)
+      }
+    }
+  }
+
+  // 產生捷運網址 (每 5 個站點合併為一個網址)
   for (const line of locations.lines ?? []) {
     const metroId = MRT_LINE_ID[line.line] ?? ''
     if (!metroId) continue
+
+    const stationIds: string[] = []
     for (const station of line.stations ?? []) {
-      const stationId = STATION_ID[station] ?? ''
-      const params = new URLSearchParams({
-        ...baseParams,
-        metro: metroId,
-      })
-      if (stationId) params.set('station', stationId)
+      const sid = STATION_ID[station]
+      if (sid) stationIds.push(sid)
+    }
+
+    if (stationIds.length === 0) {
+      const params = new URLSearchParams(baseParams)
+      params.set('metro', metroId)
       urls.push(`https://rent.591.com.tw/list?${params}`)
+    } else {
+      for (let i = 0; i < stationIds.length; i += 5) {
+        const chunk = stationIds.slice(i, i + 5)
+        const params = new URLSearchParams(baseParams)
+        params.set('metro', metroId)
+        params.set('station', chunk.join(','))
+        urls.push(`https://rent.591.com.tw/list?${params}`)
+      }
     }
   }
 
