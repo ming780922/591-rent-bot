@@ -31,20 +31,21 @@ function makeSub(locations: object, extra: Record<string, any> = {}): Record<str
 }
 
 describe('build591Url', () => {
-  it('areas only → produces town URLs, one per area', () => {
+  it('areas only → chunked by 5 per city, multiple cities separate', () => {
     const sub = makeSub({
       areas: [
         { city: '台北市', region: '大安區' },
+        { city: '台北市', region: '中山區' },
         { city: '新北市', region: '板橋區' },
       ],
       lines: [],
     })
     const urls = build591Url(sub)
-    expect(urls).toHaveLength(2)
+    expect(urls).toHaveLength(2) // 台北市(2區域合併為1個網址) + 新北市(1區域為1個網址)
     urls.forEach(u => expect(u).toContain('rent.591.com.tw/list'))
   })
 
-  it('lines only → produces MRT URLs, one per station', () => {
+  it('lines only → chunked by 5 per line', () => {
     const sub = makeSub({
       areas: [],
       lines: [
@@ -52,17 +53,17 @@ describe('build591Url', () => {
       ],
     })
     const urls = build591Url(sub)
-    expect(urls).toHaveLength(2)
-    urls.forEach(u => expect(u).toContain('rent.591.com.tw/list'))
+    expect(urls).toHaveLength(1) // 2 stations are grouped into 1 URL
+    expect(new URL(urls[0]).searchParams.get('station')).toContain(',') // contains comma
   })
 
-  it('both areas and lines → produces town + MRT URLs, total count correct', () => {
+  it('both areas and lines → produces town + MRT URLs, grouped into chunks', () => {
     const sub = makeSub({
       areas: [{ city: '台北市', region: '大安區' }],
       lines: [{ line: '板南線', stations: ['忠孝敦化', '忠孝復興', '市政府'] }],
     })
     const urls = build591Url(sub)
-    expect(urls).toHaveLength(4) // 1 area + 3 stations
+    expect(urls).toHaveLength(2) // 1 town chunk + 1 MRT line chunk
   })
 
   it('both empty → returns empty array', () => {
