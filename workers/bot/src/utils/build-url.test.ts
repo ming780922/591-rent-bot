@@ -145,26 +145,34 @@ describe('build591Url', () => {
     expect(urls).toHaveLength(0)
   })
 
-  it('rent filter → price=min_max format (not price_min/price_max)', () => {
+  it('rent filter → price=min$_max$ format (custom free-text values)', () => {
     const sub = makeSub(
       { areas: [{ city: '台北市', region: '大安區' }], lines: [] },
       { rent_min: 10000, rent_max: 25000 }
     )
     const [url] = build591Url(sub)
-    const params = new URL(url).searchParams
-    expect(params.get('price')).toBe('10000_25000')
-    expect(params.has('price_min')).toBe(false)
-    expect(params.has('price_max')).toBe(false)
+    const rawSearch = new URL(url).search
+    expect(rawSearch).toContain('price=10000%24_25000%24')
+    expect(rawSearch).not.toContain('price_min')
+    expect(rawSearch).not.toContain('price_max')
   })
 
-  it('rent_min only → price=min_ format', () => {
+  it('rent_min only → price=min$_$ format', () => {
     const sub = makeSub(
       { areas: [{ city: '台北市', region: '大安區' }], lines: [] },
       { rent_min: 15000 }
     )
     const [url] = build591Url(sub)
-    const params = new URL(url).searchParams
-    expect(params.get('price')).toBe('15000_')
+    expect(new URL(url).search).toContain('price=15000%24_%24')
+  })
+
+  it('rent_max only → price=$_max$ format', () => {
+    const sub = makeSub(
+      { areas: [{ city: '台北市', region: '大安區' }], lines: [] },
+      { rent_max: 30000 }
+    )
+    const [url] = build591Url(sub)
+    expect(new URL(url).search).toContain('price=%24_30000%24')
   })
 
   it('size filter → acreage=min_max format (not area_min/area_max)', () => {
@@ -255,7 +263,7 @@ describe('build591Url', () => {
     const params = new URL(url).searchParams
     expect(params.get('region')).toBe('1')
     expect(params.get('section')).toBe('5')
-    expect(params.get('price')).toBe('10000_20000')
+    expect(new URL(url).search).toContain('price=10000%24_20000%24')
     expect(params.get('other')).toBe('pet')
   })
 

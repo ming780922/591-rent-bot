@@ -140,10 +140,10 @@ function buildBaseParams(sub: Record<string, any>): Record<string, string> {
     if (ids.length) params['kind'] = ids.join(',')
   }
 
-  // 租金 (price=min_max)
+  // 租金 (price=min$_max$ for custom free-text values)
   if (sub.rent_min || sub.rent_max) {
-    const min = sub.rent_min ? String(sub.rent_min) : '0'
-    const max = sub.rent_max ? String(sub.rent_max) : ''
+    const min = sub.rent_min ? `${sub.rent_min}$` : '$'
+    const max = sub.rent_max ? `${sub.rent_max}$` : '$'
     params['price'] = `${min}_${max}`
   }
 
