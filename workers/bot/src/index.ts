@@ -17,7 +17,7 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
-    const { getAllActiveSubscriptions, updateLastRunAt } = await import('./db/queries')
+    const { getAllActiveSubscriptions, updateLastRunAt, getHiddenItems } = await import('./db/queries')
     const { build591Url } = await import('../../shared/build-url')
     const { dispatchCrawler } = await import('../../shared/gha')
 
@@ -31,11 +31,13 @@ export default {
 
     console.log(`[Cron] 查詢到 ${result.results.length} 筆 active 訂閱`)
 
-    const subscriptions = result.results.map((sub: any) => {
+    const subscriptions = await Promise.all(result.results.map(async (sub: any) => {
       const urls = build591Url(sub)
-      console.log(`[Cron] chat_id=${sub.telegram_id} urls: ${JSON.stringify(urls)}`)
-      return { chat_id: String(sub.telegram_id), urls }
-    })
+      const hiddenRecords = await getHiddenItems(env.DB, sub.telegram_id)
+      const hidden_items = hiddenRecords.map(r => r.item_id)
+      console.log(`[Cron] chat_id=${sub.telegram_id} urls: ${JSON.stringify(urls)} hidden: ${hidden_items.length}`)
+      return { chat_id: String(sub.telegram_id), urls, hidden_items }
+    }))
 
     console.log(`[Cron] 觸發 GHA，共 ${subscriptions.length} 個訂閱`)
 

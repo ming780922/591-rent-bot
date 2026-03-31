@@ -16,6 +16,7 @@
     <button class="tab-btn active" data-tab="settings">設定訂閱</button>
     <button class="tab-btn" data-tab="view">查看訂閱</button>
     <button class="tab-btn" data-tab="manage">管理</button>
+    <button class="tab-btn" data-tab="hidden">隱藏清單</button>
   </nav>
 
   <!-- Toast -->
@@ -187,6 +188,20 @@
       <section class="section">
         <h2 class="section-title danger-title">危險操作</h2>
         <button type="button" id="delete-btn" class="btn-danger">刪除訂閱</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- ── Tab: Hidden Items ── -->
+  <div id="tab-hidden" class="tab-content">
+    <div id="hidden-loading" class="loading-state">載入中...</div>
+    <div id="hidden-empty" class="empty-state" style="display:none">
+      <p>目前沒有隱藏的物件</p>
+    </div>
+    <div id="hidden-content" style="display:none">
+      <section class="section">
+        <h2 class="section-title">已隱藏的租屋物件</h2>
+        <ul id="hidden-list" class="hidden-item-list"></ul>
       </section>
     </div>
   </div>

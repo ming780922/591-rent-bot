@@ -90,6 +90,7 @@ function switchTab(name) {
   })
   if (name === 'view') loadViewTab()
   if (name === 'manage') loadManageTab()
+  if (name === 'hidden') loadHiddenTab()
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -584,6 +585,83 @@ document.getElementById('delete-btn').addEventListener('click', async () => {
     btn.textContent = '刪除訂閱'
   }
 })
+
+// ── Hidden tab ────────────────────────────────────
+async function loadHiddenTab() {
+  const loading = document.getElementById('hidden-loading')
+  const empty = document.getElementById('hidden-empty')
+  const content = document.getElementById('hidden-content')
+  const list = document.getElementById('hidden-list')
+
+  loading.style.display = ''
+  empty.style.display = 'none'
+  content.style.display = 'none'
+
+  try {
+    const data = await apiCall('GET', '/hidden-items')
+    const items = data.items || []
+
+    loading.style.display = 'none'
+
+    if (items.length === 0) {
+      empty.style.display = ''
+      return
+    }
+
+    content.style.display = ''
+    list.innerHTML = ''
+
+    items.forEach(item => {
+      const li = document.createElement('li')
+      li.className = 'hidden-item-row'
+
+      const infoDiv = document.createElement('div')
+      infoDiv.className = 'hidden-item-info'
+
+      const titleLink = document.createElement('a')
+      titleLink.className = 'hidden-item-title'
+      titleLink.href = item.link || `https://rent.591.com.tw/home/${item.item_id}`
+      titleLink.target = '_blank'
+      titleLink.textContent = item.title
+
+      const dateSpan = document.createElement('span')
+      dateSpan.className = 'hidden-item-date'
+      const date = new Date(item.created_at * 1000)
+      dateSpan.textContent = `隱藏於：${date.toLocaleString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+
+      infoDiv.appendChild(titleLink)
+      infoDiv.appendChild(dateSpan)
+
+      const btn = document.createElement('button')
+      btn.className = 'btn-secondary'
+      btn.textContent = '復原顯示'
+      btn.onclick = async () => {
+        btn.disabled = true
+        btn.textContent = '處理中...'
+        try {
+          await apiCall('DELETE', `/hidden-items/${item.item_id}`)
+          showToast('✅ 已恢復顯示，將重新推播！')
+          li.remove()
+          if (list.children.length === 0) {
+            content.style.display = 'none'
+            empty.style.display = ''
+          }
+        } catch (e) {
+          showToast('❌ 恢復失敗：' + e.message)
+          btn.disabled = false
+          btn.textContent = '復原顯示'
+        }
+      }
+
+      li.appendChild(infoDiv)
+      li.appendChild(btn)
+      list.appendChild(li)
+    })
+
+  } catch (err) {
+    loading.textContent = '載入失敗：' + err.message
+  }
+}
 
 // ── Reset form ────────────────────────────────────
 function resetForm() {

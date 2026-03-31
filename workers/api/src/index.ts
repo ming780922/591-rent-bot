@@ -210,6 +210,21 @@ async function deleteSubscription(db: D1Database, telegramId: number) {
   await db.prepare(`DELETE FROM subscriptions WHERE telegram_id = ?`).bind(telegramId).run()
 }
 
+async function getHiddenItems(db: D1Database, telegramId: number) {
+  return db.prepare(
+    `SELECT item_id, title, link, created_at
+     FROM hidden_items
+     WHERE telegram_id = ?
+     ORDER BY created_at DESC`
+  ).bind(telegramId).all<{ item_id: string; title: string; link: string; created_at: number }>()
+}
+
+async function removeHiddenItem(db: D1Database, telegramId: number, itemId: string) {
+  return db.prepare(
+    `DELETE FROM hidden_items WHERE telegram_id = ? AND item_id = ?`
+  ).bind(telegramId, itemId).run()
+}
+
 // ── CORS helpers ───────────────────────────────────
 function corsHeaders(origin: string): Record<string, string> {
   return {
@@ -325,6 +340,20 @@ export default {
       return json({ ok: true }, 200, origin)
     }
 
+    // ── GET /hidden-items ─────────────────────────
+    if (request.method === 'GET' && path === '/hidden-items') {
+      const dbResp = await getHiddenItems(env.DB, telegramId)
+      return json({ items: dbResp.results }, 200, origin)
+    }
+
+    // ── DELETE /hidden-items/:item_id ──────────────
+    if (request.method === 'DELETE' && path.startsWith('/hidden-items/')) {
+      const itemId = path.split('/')[2]
+      if (!itemId) return err('Missing item id', 400, origin)
+      await removeHiddenItem(env.DB, telegramId, itemId)
+      return json({ ok: true }, 200, origin)
+    }
+
     // ── POST /search ───────────────────────────────
     if (request.method === 'POST' && path === '/search') {
       const row = await getSubscription(env.DB, telegramId)
@@ -332,9 +361,13 @@ export default {
         return json({ ok: false, error: 'NO_SUBSCRIPTION' }, 400, origin)
       }
 
+      const hiddenRecords = await getHiddenItems(env.DB, telegramId)
+      const hidden_items = hiddenRecords.results.map(r => r.item_id)
+
       const subscriptions = [{
         chat_id: String(telegramId),
         urls: build591Url(row),
+        hidden_items
       }]
 
       const { dispatchCrawler } = await import('../../shared/gha')

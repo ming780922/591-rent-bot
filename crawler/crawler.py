@@ -166,13 +166,21 @@ async def send_telegram_full(chat_id: str, items: list) -> None:
         for item in items:
             caption = format_item(item)
             screenshot_path = item.get('screenshot_path')
+            
+            inline_keyboard = {"inline_keyboard": [[{"text": "🚫 不要再顯示此物件", "callback_data": f"hide:{item['id']} "}]]}
+            reply_markup_json = json.dumps(inline_keyboard)
 
             if screenshot_path and Path(screenshot_path).exists():
                 try:
                     with open(screenshot_path, 'rb') as f:
                         resp = await client.post(
                             f"{TELEGRAM_API}/sendPhoto",
-                            data={"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"},
+                            data={
+                                "chat_id": chat_id, 
+                                "caption": caption, 
+                                "parse_mode": "HTML", 
+                                "reply_markup": reply_markup_json
+                            },
                             files={"photo": f},
                         )
                     print(f"  推播狀態(photo): {resp.status_code} | {resp.text[:100]}")
@@ -183,6 +191,7 @@ async def send_telegram_full(chat_id: str, items: list) -> None:
                         "text": caption,
                         "parse_mode": "HTML",
                         "disable_web_page_preview": False,
+                        "reply_markup": inline_keyboard
                     })
                     print(f"  推播狀態(fallback): {resp.status_code} | {resp.text[:100]}")
             else:
@@ -191,6 +200,7 @@ async def send_telegram_full(chat_id: str, items: list) -> None:
                     "text": caption,
                     "parse_mode": "HTML",
                     "disable_web_page_preview": False,
+                    "reply_markup": inline_keyboard
                 })
                 print(f"  推播狀態(text): {resp.status_code} | {resp.text[:100]}")
 
@@ -207,6 +217,7 @@ async def main():
             chat_id = str(sub["chat_id"])
             urls: list[str] = sub["urls"]
             force_send = sub.get("force_send_all", False)
+            hidden_items = set(sub.get("hidden_items", []))
             print(f"\n[chat_id={chat_id}] 共 {len(urls)} 個 URL (force_send={force_send})")
 
             try:
@@ -216,11 +227,13 @@ async def main():
                 for url in urls:
                     items = await crawl_591(browser, url)
                     for item in items:
+                        if item["id"] in hidden_items:
+                            continue
                         if item["id"] not in seen_ids:
                             seen_ids.add(item["id"])
                             all_items.append(item)
 
-                print(f"  合計 {len(all_items)} 筆（去重後）")
+                print(f"  合計 {len(all_items)} 筆（去重過濾後）")
                 
                 if force_send:
                     await enrich_with_screenshots(browser, all_items)

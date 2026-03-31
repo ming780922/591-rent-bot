@@ -98,6 +98,31 @@ export function createBot(env: Env): Bot<BotContext> {
     }
   })
 
+  // Callback query（單獨處理隱藏物件按鈕）
+  bot.callbackQuery(/hide:(.+)/, async (ctx) => {
+    const { addHiddenItem } = await import('./db/queries')
+    
+    try {
+      if (!ctx.from) throw new Error('No user data')
+      const itemId = ctx.match[1]
+      
+      // 解析原本訊息中的標題與連結
+      const caption = ctx.callbackQuery.message?.caption || ctx.callbackQuery.message?.text || ''
+      let title = caption.split('\n')[0].replace('🏠 ', '').trim()
+      if (!title) title = `無標題物件 (${itemId})`
+      
+      const urlMatch = caption.match(/https:\/\/rent\.591\.com\.tw\S+/)
+      const link = urlMatch ? urlMatch[0] : `https://rent.591.com.tw/home/${itemId}`
+      
+      await addHiddenItem(env.DB, ctx.from.id, itemId, title, link)
+      await ctx.deleteMessage()
+      await ctx.answerCallbackQuery({ text: '✅ 已加入隱藏清單，未來的推播將會自動過濾。' })
+    } catch (e: any) {
+      console.error('[Bot] hide callback error:', e)
+      await ctx.answerCallbackQuery({ text: '隱藏失敗，請稍後再試。', show_alert: true })
+    }
+  })
+
   // Callback query（Inline Keyboard 點擊）
   bot.on('callback_query:data', subscribeCallbackHandler(env))
 

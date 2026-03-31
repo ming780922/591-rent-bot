@@ -50,3 +50,12 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_status
   ON subscriptions(status);
+
+CREATE TABLE IF NOT EXISTS hidden_items (
+  telegram_id INTEGER NOT NULL REFERENCES users(telegram_id),
+  item_id     TEXT    NOT NULL,
+  title       TEXT    NOT NULL,
+  link        TEXT    NOT NULL,
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  PRIMARY KEY (telegram_id, item_id)
+);

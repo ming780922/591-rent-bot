@@ -144,3 +144,27 @@ export async function updateLastRunAt(db: D1Database, subscriptionId: number) {
     `UPDATE subscriptions SET last_run_at = unixepoch() WHERE id = ?`
   ).bind(subscriptionId).run()
 }
+
+// ── Hidden Items ───────────────────────────────────
+export async function addHiddenItem(
+  db: D1Database,
+  telegramId: number,
+  itemId: string,
+  title: string,
+  link: string
+) {
+  return db.prepare(
+    `INSERT INTO hidden_items (telegram_id, item_id, title, link, created_at)
+     VALUES (?, ?, ?, ?, unixepoch())
+     ON CONFLICT(telegram_id, item_id) DO NOTHING`
+  ).bind(telegramId, itemId, title, link).run()
+}
+
+export async function getHiddenItems(db: D1Database, telegramId: number) {
+  return db.prepare(
+    `SELECT item_id, title, link, created_at
+     FROM hidden_items
+     WHERE telegram_id = ?
+     ORDER BY created_at DESC`
+  ).bind(telegramId).all<{ item_id: string; title: string; link: string; created_at: number }>()
+}

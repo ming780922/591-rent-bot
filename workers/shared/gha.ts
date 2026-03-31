@@ -7,6 +7,7 @@ export interface GhaSubscription {
   chat_id: string
   urls: string[]
   force_send_all?: boolean
+  hidden_items?: string[]
 }
 
 /**
