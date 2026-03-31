@@ -48,24 +48,40 @@ EXTRACT_JS = """
 
 
 async def crawl_591(browser, url: str) -> list:
-    page = await browser.new_page()
-    print(f"  訪問: {url}")
-    try:
-        await page.goto(url)
-        await page.wait_for_timeout(2000)
+    all_page_items = []
+    max_pages = 50
+    
+    for page_idx in range(max_pages):
+        first_row = page_idx * 30
+        page_url = f"{url}&firstRow={first_row}" if "?" in url else f"{url}?firstRow={first_row}"
+        
+        page = await browser.new_page()
+        print(f"  訪問 (第 {page_idx + 1} 頁): {page_url}")
         try:
-            close_button = page.locator('button:has-text("×")').first
-            if await close_button.is_visible():
-                await close_button.click()
-        except Exception:
-            pass
-        await page.evaluate("window.scrollTo(0, 1200)")
-        await page.wait_for_timeout(3000)
-        items = await page.evaluate(EXTRACT_JS)
-        print(f"  抓到 {len(items)} 筆")
-        return items
-    finally:
-        await page.close()
+            await page.goto(page_url)
+            await page.wait_for_timeout(2000)
+            try:
+                close_button = page.locator('button:has-text("×")').first
+                if await close_button.is_visible():
+                    await close_button.click()
+            except Exception:
+                pass
+            await page.evaluate("window.scrollTo(0, 1200)")
+            await page.wait_for_timeout(3000)
+            items = await page.evaluate(EXTRACT_JS)
+            print(f"    -> 本頁抓到 {len(items)} 筆")
+            
+            if not items:
+                break
+                
+            all_page_items.extend(items)
+            
+            if len(items) < 30:
+                break
+        finally:
+            await page.close()
+            
+    return all_page_items
 
 
 async def fetch_screenshot(browser, url: str, item_id: str, screenshots_dir: Path) -> str | None:
@@ -120,21 +136,34 @@ def format_item(item: dict) -> str:
     return f"🏠 <b>{title}</b>\n{meta}\n{link}"
 
 
-async def send_telegram(chat_id: str, items: list) -> None:
+async def send_telegram_summary(chat_id: str, count: int) -> None:
+    async with httpx.AsyncClient(timeout=30) as client:
+        if count == 0:
+            resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
+                "chat_id": chat_id,
+                "text": "🔍 本次搜尋沒有發現符合條件的新房屋。",
+            })
+            return
+            
+        resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": f"🔍 此次掃描共找到 {count} 筆符合條件的新房源。",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [{"text": f"載入所有房屋資料與截圖", "callback_data": "fetch_all"}]
+                ]
+            }
+        })
+        print(f"  摘要推播狀態: {resp.status_code} {resp.text}")
+
+async def send_telegram_full(chat_id: str, items: list) -> None:
     if not items:
         print(f"  [chat_id={chat_id}] 無新結果，跳過推播")
         return
 
     async with httpx.AsyncClient(timeout=30) as client:
-        # 先推播 header
-        resp = await client.post(f"{TELEGRAM_API}/sendMessage", json={
-            "chat_id": chat_id,
-            "text": f"找到 {len(items)} 筆新房源",
-        })
-        print(f"  摘要推播狀態: {resp.status_code} {resp.text}")
-
-        # 每筆獨立推播（最多 20 筆避免洗版）
-        for item in items[:20]:
+        # 每筆獨立推播（無數量限制）
+        for item in items:
             caption = format_item(item)
             screenshot_path = item.get('screenshot_path')
 
@@ -165,7 +194,7 @@ async def send_telegram(chat_id: str, items: list) -> None:
                 })
                 print(f"  推播狀態(text): {resp.status_code} | {resp.text[:100]}")
 
-            await asyncio.sleep(0.3)  # 避免打太快
+            await asyncio.sleep(1.0)  # 放慢推播速度避免被擋
 
 
 async def main():
@@ -177,7 +206,8 @@ async def main():
         for sub in SUBSCRIPTIONS:
             chat_id = str(sub["chat_id"])
             urls: list[str] = sub["urls"]
-            print(f"\n[chat_id={chat_id}] 共 {len(urls)} 個 URL")
+            force_send = sub.get("force_send_all", False)
+            print(f"\n[chat_id={chat_id}] 共 {len(urls)} 個 URL (force_send={force_send})")
 
             try:
                 all_items = []
@@ -191,8 +221,13 @@ async def main():
                             all_items.append(item)
 
                 print(f"  合計 {len(all_items)} 筆（去重後）")
-                await enrich_with_screenshots(browser, all_items)
-                await send_telegram(chat_id, all_items)
+                
+                if force_send:
+                    await enrich_with_screenshots(browser, all_items)
+                    await send_telegram_full(chat_id, all_items)
+                else:
+                    await send_telegram_summary(chat_id, len(all_items))
+                    
                 print(f"  [OK] 推播完成")
 
             except Exception as e:

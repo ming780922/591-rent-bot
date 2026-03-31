@@ -69,6 +69,35 @@ export function createBot(env: Env): Bot<BotContext> {
     return resumeHandler(env)(ctx)
   })
 
+  // Callback query（單獨處理 fetch_all 按鈕）
+  bot.callbackQuery('fetch_all', async (ctx) => {
+    const { getSubscription } = await import('./db/queries')
+    const { build591Url } = await import('../../shared/build-url')
+    const { dispatchCrawler } = await import('../../shared/gha')
+
+    try {
+      if (!ctx.from) throw new Error('No user data')
+      const row = await getSubscription(env.DB, ctx.from.id)
+      if (!row) {
+        await ctx.answerCallbackQuery({ text: '查無您的訂閱資料！', show_alert: true })
+        return
+      }
+
+      const subscriptions = [{
+        chat_id: String(ctx.from.id),
+        urls: build591Url(row as any),
+      }]
+
+      await dispatchCrawler(env, subscriptions, true) // forceSendAll = true
+      
+      await ctx.editMessageText('✅ 正在為您讀取所有詳細資料並截圖，因為張數較多，這可能會花費幾分鐘的時間，請稍候...')
+      await ctx.answerCallbackQuery()
+    } catch (e: any) {
+      console.error('[Bot] fetch_all callback error:', e)
+      await ctx.answerCallbackQuery({ text: '發送失敗，請稍後再試。', show_alert: true })
+    }
+  })
+
   // Callback query（Inline Keyboard 點擊）
   bot.on('callback_query:data', subscribeCallbackHandler(env))
 

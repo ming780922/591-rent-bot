@@ -337,26 +337,12 @@ export default {
         urls: build591Url(row),
       }]
 
-      const ghResp = await fetch(
-        `https://api.github.com/repos/${env.GH_REPO}/actions/workflows/crawl.yml/dispatches`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${env.GH_TOKEN}`,
-            Accept: 'application/vnd.github+json',
-            'Content-Type': 'application/json',
-            'User-Agent': '591-rent-bot',
-          },
-          body: JSON.stringify({
-            ref: 'main',
-            inputs: { subscriptions: JSON.stringify(subscriptions) },
-          }),
-        }
-      )
+      const { dispatchCrawler } = await import('../../shared/gha')
 
-      if (!ghResp.ok) {
-        const body = await ghResp.text()
-        console.error(`[Search] GHA 觸發失敗: ${ghResp.status} ${body}`)
+      try {
+        await dispatchCrawler(env, subscriptions, false)
+      } catch (e: any) {
+        console.error(`[Search] GHA 觸發失敗:`, e)
         return json({ ok: false, error: 'TRIGGER_FAILED' }, 502, origin)
       }
       return json({ ok: true }, 200, origin)

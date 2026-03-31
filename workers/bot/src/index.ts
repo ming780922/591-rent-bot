@@ -19,6 +19,7 @@ export default {
   async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
     const { getAllActiveSubscriptions, updateLastRunAt } = await import('./db/queries')
     const { build591Url } = await import('../../shared/build-url')
+    const { dispatchCrawler } = await import('../../shared/gha')
 
     console.log('[Cron] 開始執行排程')
 
@@ -38,30 +39,13 @@ export default {
 
     console.log(`[Cron] 觸發 GHA，共 ${subscriptions.length} 個訂閱`)
 
-    const resp = await fetch(
-      `https://api.github.com/repos/${env.GH_REPO}/actions/workflows/crawl.yml/dispatches`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.GH_TOKEN}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-          'User-Agent': '591-rent-bot',
-        },
-        body: JSON.stringify({
-          ref: 'main',
-          inputs: { subscriptions: JSON.stringify(subscriptions) },
-        }),
-      }
-    )
-
-    if (!resp.ok) {
-      const body = await resp.text()
-      console.error(`[Cron] GHA 觸發失敗: ${resp.status} ${body}`)
+    try {
+      await dispatchCrawler(env, subscriptions, false)
+      console.log(`[Cron] GHA 觸發成功`)
+    } catch (e) {
+      console.error(`[Cron] GHA 觸發錯誤:`, e)
       return
     }
-
-    console.log(`[Cron] GHA 觸發成功: ${resp.status}`)
 
     for (const sub of result.results as any[]) {
       await updateLastRunAt(env.DB, sub.id)
