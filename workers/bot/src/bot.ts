@@ -71,7 +71,7 @@ export function createBot(env: Env): Bot<BotContext> {
 
   // Callback query（單獨處理 fetch_all 按鈕）
   bot.callbackQuery('fetch_all', async (ctx) => {
-    const { getSubscription } = await import('./db/queries')
+    const { getSubscription, getHiddenItems } = await import('./db/queries')
     const { build591Url } = await import('../../shared/build-url')
     const { dispatchCrawler } = await import('../../shared/gha')
 
@@ -83,9 +83,15 @@ export function createBot(env: Env): Bot<BotContext> {
         return
       }
 
+      const hiddenRecords = await getHiddenItems(env.DB, ctx.from.id)
+      const hidden_items = hiddenRecords.results.map(r => r.item_id)
+      const hidden_titles = hiddenRecords.results.map(r => r.title)
+
       const subscriptions = [{
         chat_id: String(ctx.from.id),
         urls: build591Url(row as any),
+        hidden_items,
+        hidden_titles
       }]
 
       await dispatchCrawler(env, subscriptions, true) // forceSendAll = true
@@ -104,7 +110,7 @@ export function createBot(env: Env): Bot<BotContext> {
     
     try {
       if (!ctx.from) throw new Error('No user data')
-      const itemId = ctx.match[1]
+      const itemId = ctx.match[1].trim()
       
       // 解析原本訊息中的標題與連結
       const caption = ctx.callbackQuery.message?.caption || ctx.callbackQuery.message?.text || ''

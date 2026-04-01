@@ -362,12 +362,14 @@ export default {
       }
 
       const hiddenRecords = await getHiddenItems(env.DB, telegramId)
-      const hidden_items = hiddenRecords.results.map(r => r.item_id)
+      const hidden_items = hiddenRecords.results.map((r: any) => r.item_id)
+      const hidden_titles = hiddenRecords.results.map((r: any) => r.title)
 
       const subscriptions = [{
         chat_id: String(telegramId),
         urls: build591Url(row),
-        hidden_items
+        hidden_items,
+        hidden_titles
       }]
 
       const { dispatchCrawler } = await import('../../shared/gha')

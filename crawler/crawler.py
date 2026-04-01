@@ -167,7 +167,7 @@ async def send_telegram_full(chat_id: str, items: list) -> None:
             caption = format_item(item)
             screenshot_path = item.get('screenshot_path')
             
-            inline_keyboard = {"inline_keyboard": [[{"text": "🚫 不要再顯示此物件", "callback_data": f"hide:{item['id']} "}]]}
+            inline_keyboard = {"inline_keyboard": [[{"text": "🚫 不要再顯示此物件", "callback_data": f"hide:{item['id']}"}]]}
             reply_markup_json = json.dumps(inline_keyboard)
 
             if screenshot_path and Path(screenshot_path).exists():
@@ -218,6 +218,7 @@ async def main():
             urls: list[str] = sub["urls"]
             force_send = sub.get("force_send_all", False)
             hidden_items = set(sub.get("hidden_items", []))
+            hidden_titles = set(sub.get("hidden_titles", []))
             print(f"\n[chat_id={chat_id}] 共 {len(urls)} 個 URL (force_send={force_send})")
 
             try:
@@ -227,7 +228,7 @@ async def main():
                 for url in urls:
                     items = await crawl_591(browser, url)
                     for item in items:
-                        if item["id"] in hidden_items:
+                        if item["id"] in hidden_items or item["title"] in hidden_titles:
                             continue
                         if item["id"] not in seen_ids:
                             seen_ids.add(item["id"])

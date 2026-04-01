@@ -34,9 +34,10 @@ export default {
     const subscriptions = await Promise.all(result.results.map(async (sub: any) => {
       const urls = build591Url(sub)
       const hiddenRecords = await getHiddenItems(env.DB, sub.telegram_id)
-      const hidden_items = hiddenRecords.map(r => r.item_id)
+      const hidden_items = hiddenRecords.results.map((r: any) => r.item_id)
+      const hidden_titles = hiddenRecords.results.map((r: any) => r.title)
       console.log(`[Cron] chat_id=${sub.telegram_id} urls: ${JSON.stringify(urls)} hidden: ${hidden_items.length}`)
-      return { chat_id: String(sub.telegram_id), urls, hidden_items }
+      return { chat_id: String(sub.telegram_id), urls, hidden_items, hidden_titles }
     }))
 
     console.log(`[Cron] 觸發 GHA，共 ${subscriptions.length} 個訂閱`)

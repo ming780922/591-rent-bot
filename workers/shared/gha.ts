@@ -8,6 +8,7 @@ export interface GhaSubscription {
   urls: string[]
   force_send_all?: boolean
   hidden_items?: string[]
+  hidden_titles?: string[]
 }
 
 /**
