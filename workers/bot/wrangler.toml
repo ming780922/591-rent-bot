@@ -17,5 +17,5 @@ binding = "DB"
 database_name = "rent-bot-db"
 database_id = "b90b0324-75f0-43be-87bf-7e10dc48582c"
 
-[triggers]
-crons = ["0 * * * *"]
+# [triggers]
+# crons = ["0 * * * *"]
